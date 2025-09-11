@@ -55,7 +55,7 @@ jobs:
         run: |
           ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
           ECR_REPOSITORY="${{ secrets.ECR_REPOSITORY }}"
-          IMAGE_TAG="latest" # 또는 ${{ github.sha }}
+          IMAGE_TAG="${{ github.sha }}"
 
           docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
@@ -67,24 +67,18 @@ jobs:
           username:  ${{ secrets.EC2_USERNAME }}
           key:       ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Set up AWS credentials and ECR registry
             aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
             aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
             aws configure set region ${{ secrets.AWS_REGION }}
             ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
             ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+            IMAGE_TAG="${{ github.sha }}"
 
-            # Login to ECR
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin "$ECR_REGISTRY"
-
-            # Pull the latest Docker image
-            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
-
-            # Stop and remove the existing container (if any)
+            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
             docker stop sikbbang-app || true
             docker rm sikbbang-app || true
 
-            # Run the new container with all required environment variables
             docker run -d --name sikbbang-app --restart unless-stopped \
               -p 8080:8080 \
               -e TZ=Asia/Seoul \
@@ -99,4 +93,4 @@ jobs:
               -e JWT_ACCESS_HEADER="${{ secrets.JWT_ACCESS_HEADER }}" \
               -e JWT_REFRESH_EXPIRATION="${{ secrets.JWT_REFRESH_EXPIRATION }}" \
               -e JWT_REFRESH_HEADER="${{ secrets.JWT_REFRESH_HEADER }}" \
-              "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+              "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
