@@ -6,7 +6,6 @@ COPY gradle gradle
 COPY build.gradle .
 COPY settings.gradle .
 COPY src src
-COPY src/main/resources/application.yml src/main/resources/application.yml
 RUN chmod +x ./gradlew
 RUN ./gradlew build -x test
 
