@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v3
-        
+
       - name: Set up JDK 17
         uses: actions/setup-java@v3
         with:
@@ -30,60 +30,91 @@ jobs:
       
       - name: Build with Gradle
         run: ./gradlew build -x test
-        
-      - name: Build and push Docker image to ECR
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
-          IMAGE_TAG: latest
-        run: |
-          # Configure AWS credentials
-          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-          aws configure set region $AWS_REGION
 
-          # Login to ECR
-          ECR_REGISTRY=$(aws sts get-caller-identity --query "Account" --output text).dkr.ecr.$AWS_REGION.amazonaws.com
-          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
-          
-          # Build and tag the Docker image
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          
-          # Push the image to ECR
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    
+    env:
+      DB_HOST:                 ${{ secrets.DB_HOST }}
+      DB_PORT:                 ${{ secrets.DB_PORT }}
+      DB_NAME:                 ${{ secrets.DB_NAME }}
+      DB_USERNAME:             ${{ secrets.DB_USERNAME }}
+      DB_PASSWORD:             ${{ secrets.DB_PASSWORD }}
+      JWT_SECRET_KEY:          ${{ secrets.JWT_SECRET_KEY }}
+      JWT_ACCESS_EXPIRATION:   ${{ secrets.JWT_ACCESS_EXPIRATION }}
+      JWT_ACCESS_HEADER:       ${{ secrets.JWT_ACCESS_HEADER }}
+      JWT_REFRESH_EXPIRATION:  ${{ secrets.JWT_REFRESH_EXPIRATION }}
+      JWT_REFRESH_HEADER:      ${{ secrets.JWT_REFRESH_HEADER }}
+      AWS_ACCESS_KEY_ID:       ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY:   ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION:              ${{ secrets.AWS_REGION }}
+      ECR_REPOSITORY:          ${{ secrets.ECR_REPOSITORY }}
+      EC2_HOST:                ${{ secrets.EC2_HOST }}
+      EC2_USERNAME:            ${{ secrets.EC2_USERNAME }}
+      EC2_SSH_KEY:             ${{ secrets.EC2_SSH_KEY }}
+
     steps:
-      - name: Deploy to EC2
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id:     ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      
+      - name: Build, tag, and push image to Amazon ECR
+        run: |
+          ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
+          ECR_REPOSITORY="${{ env.ECR_REPOSITORY }}"
+          IMAGE_TAG="latest" # 또는 ${{ github.sha }}
+
+          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+      - name: Deploy to EC2 instance
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_SSH_KEY }}
+          host:      ${{ env.EC2_HOST }}
+          username:  ${{ env.EC2_USERNAME }}
+          key:       ${{ env.EC2_SSH_KEY }}
           script: |
             # Set up AWS credentials and ECR registry
-            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws configure set region ${{ secrets.AWS_REGION }}
-            ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
-            ECR_REGISTRY=$(aws sts get-caller-identity --query "Account" --output text).dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+            aws configure set aws_access_key_id ${{ env.AWS_ACCESS_KEY_ID }}
+            aws configure set aws_secret_access_key ${{ env.AWS_SECRET_ACCESS_KEY }}
+            aws configure set region ${{ env.AWS_REGION }}
+            ECR_REPOSITORY=${{ env.ECR_REPOSITORY }}
+            ECR_REGISTRY="${{ steps.login-ecr.outputs.registry }}"
 
             # Login to ECR
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin "$ECR_REGISTRY"
 
             # Pull the latest Docker image
-            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+            docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
 
             # Stop and remove the existing container (if any)
             docker stop sikbbang-app || true
             docker rm sikbbang-app || true
 
-            # Run the new container
+            # Run the new container with all required environment variables
             docker run -d --name sikbbang-app --restart unless-stopped \
               -p 8080:8080 \
               -e TZ=Asia/Seoul \
-              $ECR_REGISTRY/$ECR_REPOSITORY:latest
+              -e DB_HOST="${{ env.DB_HOST }}" \
+              -e DB_PORT="${{ env.DB_PORT }}" \
+              -e DB_NAME="${{ env.DB_NAME }}" \
+              -e DB_USERNAME="${{ env.DB_USERNAME }}" \
+              -e DB_PASSWORD="${{ env.DB_PASSWORD }}" \
+              -e JWT_SECRET_KEY="${{ env.JWT_SECRET_KEY }}" \
+              -e JWT_ACCESS_EXPIRATION="${{ env.JWT_ACCESS_EXPIRATION }}" \
+              -e JWT_ACCESS_HEADER="${{ env.JWT_ACCESS_HEADER }}" \
+              -e JWT_REFRESH_EXPIRATION="${{ env.JWT_REFRESH_EXPIRATION }}" \
+              -e JWT_REFRESH_HEADER="${{ env.JWT_REFRESH_HEADER }}" \
+              "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
