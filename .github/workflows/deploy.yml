@@ -1,0 +1,89 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+        
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+      
+      - name: Create application.yml
+        run: |
+          mkdir -p src/main/resources
+          echo "${{ secrets.APPLICATION_YML }}" > src/main/resources/application.yml
+          
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+      
+      - name: Build with Gradle
+        run: ./gradlew build -x test
+        
+      - name: Build and push Docker image to ECR
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }}
+          IMAGE_TAG: latest
+        run: |
+          # Configure AWS credentials
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set region $AWS_REGION
+
+          # Login to ECR
+          ECR_REGISTRY=$(aws sts get-caller-identity --query "Account" --output text).dkr.ecr.$AWS_REGION.amazonaws.com
+          aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+          
+          # Build and tag the Docker image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # Push the image to ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            # Set up AWS credentials and ECR registry
+            aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws configure set region ${{ secrets.AWS_REGION }}
+            ECR_REPOSITORY=${{ secrets.ECR_REPOSITORY }}
+            ECR_REGISTRY=$(aws sts get-caller-identity --query "Account" --output text).dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+            # Login to ECR
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} | docker login --username AWS --password-stdin $ECR_REGISTRY
+
+            # Pull the latest Docker image
+            docker pull $ECR_REGISTRY/$ECR_REPOSITORY:latest
+
+            # Stop and remove the existing container (if any)
+            docker stop sikbbang-app || true
+            docker rm sikbbang-app || true
+
+            # Run the new container
+            docker run -d --name sikbbang-app --restart unless-stopped \
+              -p 8080:8080 \
+              -e TZ=Asia/Seoul \
+              $ECR_REGISTRY/$ECR_REPOSITORY:latest
