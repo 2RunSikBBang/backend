@@ -17,8 +17,7 @@ WORKDIR /app
 ENV TZ=Asia/Seoul
 ENV LANG=C.UTF-8
 
-# application.yml 파일을 런타임 이미지로 복사
-COPY --from=builder /app/src/main/resources/application.yml src/main/resources/application.yml
+# 빌드된 JAR 파일만 런타임 이미지로 복사합니다.
 COPY --from=builder /app/build/libs/*.jar app.jar
 
 # HTTP 포트 노출
