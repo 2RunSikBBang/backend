@@ -41,7 +41,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
-                "https://frontend-seven-weld-77.vercel.app/",
+                "https://frontend-seven-weld-77.vercel.app",
                 "http://localhost:3000",
                 "http://localhost:8080"
         ));
@@ -74,7 +74,8 @@ public class SecurityConfig {
                                 "/guest/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/v3/api-docs/**",
+                                "/error"
                         ).permitAll()
                         .requestMatchers("/super-admin/**").hasRole("SUPER_ADMIN")
                         .requestMatchers("/admin/**").hasAnyRole("STORE_ADMIN", "SUPER_ADMIN")

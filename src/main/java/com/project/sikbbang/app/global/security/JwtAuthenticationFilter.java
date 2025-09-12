@@ -10,6 +10,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -30,25 +31,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-        if (header != null && header.startsWith("Bearer ")) {
-            String token = header.substring(7);
-            if (jwtTokenProvider.validateToken(token)) {
-                String id = jwtTokenProvider.getAdminIdFromToken(token);
-                String role = jwtTokenProvider.getRoleFromToken(token);
+        if (SecurityContextHolder.getContext().getAuthentication() == null) {
+            String header = request.getHeader("Authorization");
+            if (StringUtils.hasText(header) && header.startsWith("Bearer ")) {
+                String token = header.substring(7).trim();
+                if (jwtTokenProvider.validateToken(token)) {
+                    String id = jwtTokenProvider.getAdminIdFromToken(token);
+                    String role = jwtTokenProvider.getRoleFromToken(token);
 
-                if (role.equals(AdminRole.BOOTH_OPERATOR.name())) {
-                    UsernamePasswordAuthenticationToken auth =
-                            new UsernamePasswordAuthenticationToken(
-                                    id, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                } else {
-                    Optional<Admin> adminOpt = adminRepository.findById(Long.valueOf(id));
-                    if (adminOpt.isPresent() && adminOpt.get().getRole().name().equals(role) && adminOpt.get().getRole() != AdminRole.NOT_ACTIVATE_ADMIN) {
+                    if (AdminRole.BOOTH_OPERATOR.name().equals(role)) {
                         UsernamePasswordAuthenticationToken auth =
                                 new UsernamePasswordAuthenticationToken(
                                         id, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                         SecurityContextHolder.getContext().setAuthentication(auth);
+                    } else if (StringUtils.hasText(id) && StringUtils.hasText(role)) {
+                        try {
+                            Long adminId = Long.valueOf(id);
+                            Optional<Admin> adminOpt = adminRepository.findById(adminId);
+                            if (adminOpt.isPresent()) {
+                                Admin admin = adminOpt.get();
+                                AdminRole adminRole = admin.getRole();
+                                if (adminRole != AdminRole.NOT_ACTIVATE_ADMIN && adminRole.name().equals(role)) {
+                                    UsernamePasswordAuthenticationToken auth =
+                                            new UsernamePasswordAuthenticationToken(
+                                                    id, null, List.of(new SimpleGrantedAuthority("ROLE_" + role)));
+                                    SecurityContextHolder.getContext().setAuthentication(auth);
+                                }
+                            }
+                        } catch (NumberFormatException ignored) {
+                        }
                     }
                 }
             }
