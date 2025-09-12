@@ -73,11 +73,9 @@ public class JwtTokenProvider {
         Date now = new Date();
         Date exp = new Date(now.getTime() + accessTokenExpiration);
 
-        Claims claims = Jwts.claims()
-                .subject(adminId)
-                .build();
-
-        if (role != null) claims.put("role", role);
+        io.jsonwebtoken.ClaimsBuilder cb = Jwts.claims().subject(adminId);
+        if (role != null) cb.add("role", role);
+        Claims claims = cb.build();
 
         return Jwts.builder()
                 .claims(claims)
