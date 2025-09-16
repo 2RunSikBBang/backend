@@ -13,13 +13,6 @@ import com.project.sikbbang.app.domain.order.model.Order;
 import com.project.sikbbang.app.domain.order.model.OrderItem;
 import com.project.sikbbang.app.domain.order.model.OrderStatus;
 import com.project.sikbbang.app.domain.order.repository.OrderRepository;
-import com.project.sikbbang.app.domain.store.dto.MenuCreateRequestDto;
-import com.project.sikbbang.app.domain.store.dto.MenuDeletionResponseDto;
-import com.project.sikbbang.app.domain.store.dto.MenuUpdateRequestDto;
-import com.project.sikbbang.app.domain.store.dto.StoreInfoUpdateRequestDto;
-import com.project.sikbbang.app.domain.store.dto.StoreLoginRequestDto;
-import com.project.sikbbang.app.domain.store.dto.StoreRegisterRequestDto;
-import com.project.sikbbang.app.domain.store.dto.StoreStatusUpdateRequestDto;
 import com.project.sikbbang.app.domain.store.dto.StoreStatusDto;
 import com.project.sikbbang.app.domain.store.dto.StoreInfoDto;
 import com.project.sikbbang.app.domain.store.model.Store;
@@ -30,10 +23,8 @@ import com.project.sikbbang.app.global.code.dto.ApiResponse;
 import com.project.sikbbang.app.global.code.status.ErrorStatus;
 import com.project.sikbbang.app.global.code.status.SuccessStatus;
 import com.project.sikbbang.app.global.exception.GeneralException;
-import com.project.sikbbang.app.global.security.JwtTokenProvider;
 import com.project.sikbbang.app.global.util.SecurityUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
@@ -47,9 +38,7 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final MenuRepository menuRepository;
     private final StoreRepository storeRepository;
-    private final PasswordEncoder passwordEncoder;
     private final AdminRepository adminRepository;
-    private final JwtTokenProvider jwtTokenProvider;
 
     @Transactional
     public ApiResponse<?> createOrder(Long storeId, OrderRequestDto request) {

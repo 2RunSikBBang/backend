@@ -132,7 +132,8 @@ public class StoreService {
         if (!menu.getStore().getId().equals(storeId)) {
             throw new GeneralException(ErrorStatus.BAD_REQUEST);
         }
-        menuRepository.delete(menu);
+        menu.setDeleted(true);
+        menuRepository.save(menu);
         return ApiResponse.onSuccess(SuccessStatus.OK.getCode(), SuccessStatus.OK.getMessage(),
                 MenuDeletionResponseDto.builder()
                         .message("Menu deleted successfully.")
@@ -201,7 +202,7 @@ public class StoreService {
     public ApiResponse<List<MenuDto>> getMenusByStore(Long storeId) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new GeneralException(ErrorStatus.NOT_FOUND));
-        List<Menu> menus = menuRepository.findByStore(store);
+        List<Menu> menus = menuRepository.findByStoreAndDeletedFalse(store);
         List<MenuDto> menuDtos = menus.stream()
                 .map(MenuDto::fromEntity)
                 .collect(Collectors.toList());

@@ -38,7 +38,12 @@ public class Menu {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
+    private boolean deleted = false;
+
     public void updatePrice(Integer price) {
         this.price = price;
+    }
+    public void setDeleted(boolean deleted) {
+        this.deleted = true;
     }
 }
