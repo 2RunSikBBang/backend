@@ -42,6 +42,7 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(List.of(
                 "https://frontend-seven-weld-77.vercel.app",
+                "https://thiswaybread-seven-weld-77.vercel.app",
                 "http://localhost:3000",
                 "http://localhost:8080"
         ));
