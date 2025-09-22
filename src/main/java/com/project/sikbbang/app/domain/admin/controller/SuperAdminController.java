@@ -2,6 +2,7 @@ package com.project.sikbbang.app.domain.admin.controller;
 
 import com.project.sikbbang.app.domain.admin.dto.AdminActivationResponseDto;
 import com.project.sikbbang.app.domain.admin.dto.AdminDto;
+import com.project.sikbbang.app.domain.admin.dto.AdminPasswordChangeRequestDto;
 import com.project.sikbbang.app.domain.admin.dto.SuperAdminLoginRequestDto;
 import com.project.sikbbang.app.domain.admin.dto.SuperAdminRegisterRequestDto;
 import com.project.sikbbang.app.domain.admin.service.SuperAdminService;
@@ -145,5 +146,21 @@ public class SuperAdminController {
     @PostMapping("/activate/{adminId}")
     public ResponseEntity<ApiResponse<AdminActivationResponseDto>> activateAdmin(@PathVariable Long adminId) {
         return ResponseEntity.ok(superAdminService.activateAdmin(adminId));
+    }
+
+    @Operation(summary = "어드민 비밀번호 변경", description = "슈퍼 어드민이 특정 어드민의 비밀번호를 변경합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class),
+                            examples = @ExampleObject(value = "{\"isSuccess\": true, \"code\": \"COMMON200\", \"message\": \"성공입니다.\", \"result\": {\"adminId\": 2, \"status\": \"password_changed\"}}"))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "어드민을 찾을 수 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class),
+                            examples = @ExampleObject(value = "{\"isSuccess\": false, \"code\": \"NOTFOUND404\", \"message\": \"요청하신 리소스를 찾을 수 없습니다.\", \"result\": null}")))
+    })
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<?>> changeAdminPassword(@RequestBody AdminPasswordChangeRequestDto request) {
+        return ResponseEntity.ok(superAdminService.changeAdminPassword(request));
     }
 }

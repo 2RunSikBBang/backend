@@ -237,4 +237,20 @@ public class StoreController {
             @PathVariable Long storeId, @PathVariable String phoneNumber) {
         return ResponseEntity.ok(orderService.getOrdersByPhoneNumberAndStore(storeId, phoneNumber));
     }
+
+    @Operation(summary = "주문 삭제", description = "특정 주문과 해당 주문의 아이템들을 삭제합니다.")
+    @ApiResponses(value = {
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "성공",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class),
+                            examples = @ExampleObject(value = "{\"isSuccess\": true, \"code\": \"COMMON200\", \"message\": \"성공입니다.\", \"result\": {\"orderId\": 1, \"status\": \"deleted\"}}"))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "주문을 찾을 수 없음",
+                    content = @Content(mediaType = "application/json",
+                            schema = @Schema(implementation = ApiResponse.class),
+                            examples = @ExampleObject(value = "{\"isSuccess\": false, \"code\": \"NOTFOUND404\", \"message\": \"요청하신 리소스를 찾을 수 없습니다.\", \"result\": null}")))
+    })
+    @DeleteMapping("/{storeId}/orders/{orderId}")
+    public ResponseEntity<ApiResponse<?>> deleteOrder(@PathVariable Long storeId, @PathVariable Long orderId) {
+        return ResponseEntity.ok(orderService.deleteOrder(storeId, orderId));
+    }
 }

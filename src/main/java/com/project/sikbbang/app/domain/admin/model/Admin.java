@@ -46,4 +46,8 @@ public class Admin {
     public void setRole(AdminRole role) {
         this.role = role;
     }
+
+    public void changePassword(String encodedPassword) {
+        this.password = encodedPassword;
+    }
 }

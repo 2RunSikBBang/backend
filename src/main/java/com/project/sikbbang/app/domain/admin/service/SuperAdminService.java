@@ -2,6 +2,7 @@ package com.project.sikbbang.app.domain.admin.service;
 
 import com.project.sikbbang.app.domain.admin.dto.AdminActivationResponseDto;
 import com.project.sikbbang.app.domain.admin.dto.AdminDto;
+import com.project.sikbbang.app.domain.admin.dto.AdminPasswordChangeRequestDto;
 import com.project.sikbbang.app.domain.admin.dto.SuperAdminLoginRequestDto;
 import com.project.sikbbang.app.domain.admin.dto.SuperAdminRegisterRequestDto;
 import com.project.sikbbang.app.domain.admin.model.Admin;
@@ -17,6 +18,7 @@ import com.project.sikbbang.app.global.code.status.ErrorStatus;
 import com.project.sikbbang.app.global.code.status.SuccessStatus;
 import com.project.sikbbang.app.global.exception.GeneralException;
 import com.project.sikbbang.app.global.security.JwtTokenProvider;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -149,5 +151,20 @@ public class SuperAdminService {
                         .status("activated")
                         .adminId(adminId)
                         .build());
+    }
+
+    @Transactional
+    public ApiResponse<?> changeAdminPassword(AdminPasswordChangeRequestDto request) {
+        Admin admin = adminRepository.findById(request.getAdminId())
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NOT_FOUND));
+
+        admin.changePassword(passwordEncoder.encode(request.getNewPassword()));
+        adminRepository.save(admin);
+
+        return ApiResponse.onSuccess(
+                SuccessStatus.OK.getCode(),
+                SuccessStatus.OK.getMessage(),
+                Map.of("adminId", admin.getId(), "status", "password_changed")
+        );
     }
 }

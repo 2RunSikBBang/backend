@@ -24,6 +24,7 @@ import com.project.sikbbang.app.global.code.status.ErrorStatus;
 import com.project.sikbbang.app.global.code.status.SuccessStatus;
 import com.project.sikbbang.app.global.exception.GeneralException;
 import com.project.sikbbang.app.global.util.SecurityUtil;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -203,5 +204,19 @@ public class OrderService {
                 throw new GeneralException(ErrorStatus.FORBIDDEN);
             }
         }
+    }
+
+    @Transactional
+    public ApiResponse<?> deleteOrder(Long storeId, Long orderId) {
+        Order order = orderRepository.findByIdAndStoreId(orderId, storeId)
+                .orElseThrow(() -> new GeneralException(ErrorStatus.NOT_FOUND));
+
+        orderRepository.delete(order);
+
+        return ApiResponse.onSuccess(
+                SuccessStatus.OK.getCode(),
+                SuccessStatus.OK.getMessage(),
+                Map.of("orderId", orderId, "status", "deleted")
+        );
     }
 }
